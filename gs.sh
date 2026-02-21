@@ -24,7 +24,7 @@ on_branch() {
   git branch --show-current | grep -oE "^$branch_name$" >/dev/null 2>&1
 }
 
-has_local_changes() {
+has_changes() {
   git diff --quiet
   local unstaged=$?
 
@@ -43,12 +43,12 @@ has_local_changes() {
 }
 
 stash_push_changes() {
-  if ! has_local_changes; then
-    echo "No local changes to stash"
+  if ! has_changes; then
+    echo "No changes to stash"
   else
     git stash push --quiet --include-untracked --message "$(date '+%d-%m.%H:%M')"
 
-    echo "Local changes have been stahed"
+    echo "Changes have been stashed"
   fi
 }
 
@@ -60,9 +60,9 @@ sync_branch() {
 
     echo $'\e[1;33m!\e[0m'"Your branch has no upstream configured"
   else
-    switch_log=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
+    local message=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
 
-    echo $'\e[1;36m!\e[0m'"$switch_log"
+    echo $'\e[1;36m!\e[0m'"$message"
 
     local status_count=$(git rev-list --left-right --count HEAD...@{upstream})
     local ahead_count behind_count
@@ -102,8 +102,6 @@ if on_branch $branch_name; then
 fi
 
 if ! branch_verify $branch_name; then
-  echo "invalid reference: $branch_name"
-
   read -p $'\e[1;32m?\e[0m'" Create a new branch named '"$'\e[1;37m'"$branch_name"$'\e[0m'"'? [Y/n] " yn
   case "$yn" in
     [Nn]*)
@@ -113,9 +111,9 @@ if ! branch_verify $branch_name; then
     [Yy]*)
       stash_push_changes
 
-      base_branch=$(git rev-parse --abbrev-ref origin/HEAD | sed -E 's/^origin\///')
+      default_branch=$(git rev-parse --abbrev-ref origin/HEAD | sed -E 's/^origin\///')
 
-      echo "Setting up new branch '$branch_name' based on '$base_branch'"
+      echo "Setting up new branch '$branch_name' based on '$default_branch'"
 
       git switch --quiet $base_branch
       git pull --quiet
