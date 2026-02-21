@@ -133,9 +133,9 @@ else
   if [ -z "$last_stash_id" ]; then
     echo "No stashed changes available"
   else
-    number_files_changed=$(git stash show --include--untracked $last_stash_id | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
+    n_changes=$(git stash show --include--untracked $last_stash_id | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
 
-    echo $'\e[1;33m!\e[0m'" You have $number_files_changed in your last stash"
+    echo $'\e[1;33m!\e[0m'" You have $n_changes in your last stash"
     git stash show --include-untracked $last_stash_id | sed '$d'
 
     read -p $'\e[1;32m?\e[0m'" Apply last stashed changes? [Y/n] " yn
