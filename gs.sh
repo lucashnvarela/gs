@@ -42,6 +42,12 @@ has_changes() {
   return 1
 }
 
+has_upstream() {
+  local branch_name=$1
+
+  git rev-parse --verify "$branch_name@{upstream}" >/dev/null 2>&1
+}
+
 stash_push_changes() {
   if ! has_changes; then
     echo "No changes to stash"
@@ -55,10 +61,10 @@ stash_push_changes() {
 sync_branch() {
   local branch_name=$1
 
-  if ! branch_upstream $branch_name; then
+  if ! has_upstream $branch_name; then
     git switch $branch_name
 
-    echo $'\e[1;33m!\e[0m'"Your branch has no upstream configured"
+    echo $'\e[1;33m!\e[0m'" Your branch has no upstream configured"
   else
     local message=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
 
@@ -69,7 +75,7 @@ sync_branch() {
     read ahead_count behind_count <<< "$status_count"
 
     if [ $behind_count -ne 0 ]; then
-      read -p $'\e[1;32m?\e[0m'"Pull commits from remote? [Y/n] " yn
+      read -p $'\e[1;32m?\e[0m'" Pull commits from remote? [Y/n] " yn
       case "$yn" in
         [Nn*])
           return
@@ -81,7 +87,7 @@ sync_branch() {
     fi
 
     if [ $ahead_count -ne 0 ]; then
-      read -p $'\e[1;32m?\e[0m'"Push commits to remote? [Y/n] " yn
+      read -p $'\e[1;32m?\e[0m'" Push commits to remote? [Y/n] " yn
       case "$yn" in
         [Nn*])
           return
@@ -118,9 +124,7 @@ if ! branch_verify $branch_name; then
       git switch --quiet $base_branch
       git pull --quiet
 
-      git branch $branch_name
-
-      git switch $branch_name
+      git switch --create $branch_name
       ;;
   esac
 else
