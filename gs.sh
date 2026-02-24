@@ -10,17 +10,13 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-branch_name=$1
+branch_name="$1"
 
-branch_verify() {
-  local branch_name=$1
-
-  git rev-parse --verify "$branch_name" >/dev/null 2>&1
+branch_exists() {
+  git rev-parse --verify $branch_name >/dev/null 2>&1
 }
 
 on_branch() {
-  local branch_name=$1
-
   git branch --show-current | grep -oE "^$branch_name$" >/dev/null 2>&1
 }
 
@@ -43,9 +39,7 @@ has_changes() {
 }
 
 has_upstream() {
-  local branch_name=$1
-
-  git rev-parse --verify "$branch_name@{upstream}" >/dev/null 2>&1
+  git rev-parse --verify $branch_name@{upstream} >/dev/null 2>&1
 }
 
 stash_push_changes() {
@@ -59,16 +53,14 @@ stash_push_changes() {
 }
 
 stash_apply_changes() {
-  local branch_name=$1
-
   local last_stash_id=$(git stash list | grep "\s$branch_name:" -m 1 | grep -oE "stash@{\d+}" | grep -oE "\d+")
 
   if [ -z "$last_stash_id" ]; then
     echo "No stashed changes available"
   else
-    local n_changes=$(git stash show --include--untracked $last_stash_id | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
+    local n_changes=$(git stash show --include-untracked $last_stash_id | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
 
-    echo $'\e[1;33m!\e[0m'" You have $n_changes changes in your last stash"
+    echo $'\e[1;33m!\e[0m'" You have $n_changes in your last stash"
     git stash show --include-untracked $last_stash_id | sed '$d'
 
     read -p $'\e[1;32m?\e[0m'" Apply last stashed changes? [Y/n] " yn
@@ -83,55 +75,43 @@ stash_apply_changes() {
 }
 
 sync_branch() {
-  local branch_name=$1
+  local status_count=$(git rev-list --left-right --count HEAD...@{upstream})
+  local ahead_count behind_count
+  read ahead_count behind_count <<< $status_count
 
-  if ! has_upstream $branch_name; then
-    git switch $branch_name
+  if [ $behind_count -ne 0 ]; then
+    read -p $'\e[1;32m?\e[0m'" Pull commits from remote? [Y/n] " yn
+    case "$yn" in
+      [Nn*])
+        return
+        ;;
+      [Yy*])
+        git pull --quiet
+        ;;
+    esac
+  fi
 
-    echo $'\e[1;33m!\e[0m'" Your branch has no upstream configured"
-  else
-    local message=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
-
-    echo $'\e[1;36m!\e[0m'"$message"
-
-    local status_count=$(git rev-list --left-right --count HEAD...@{upstream})
-    local ahead_count behind_count
-    read ahead_count behind_count <<< "$status_count"
-
-    if [ $behind_count -ne 0 ]; then
-      read -p $'\e[1;32m?\e[0m'" Pull commits from remote? [Y/n] " yn
-      case "$yn" in
-        [Nn*])
-          return
-          ;;
-        [Yy*])
-          git pull --quiet
-          ;;
-      esac
-    fi
-
-    if [ $ahead_count -ne 0 ]; then
-      read -p $'\e[1;32m?\e[0m'" Push commits to remote? [Y/n] " yn
-      case "$yn" in
-        [Nn*])
-          return
-          ;;
-        [Yy*])
-          git push --quiet
-          ;;
-      esac
-    fi
+  if [ $ahead_count -ne 0 ]; then
+    read -p $'\e[1;32m?\e[0m'" Push commits to remote? [Y/n] " yn
+    case "$yn" in
+      [Nn*])
+        return
+        ;;
+      [Yy*])
+        git push --quiet
+        ;;
+    esac
   fi
 }
 
 git fetch --quiet --all
 
-if on_branch $branch_name; then
+if on_branch; then
   echo "Already on '$branch_name'"
   exit 0
 fi
 
-if ! branch_verify $branch_name; then
+if ! branch_exists; then
   read -p $'\e[1;32m?\e[0m'" Create a new branch named '"$'\e[1;37m'"$branch_name"$'\e[0m'"'? [Y/n] " yn
   case "$yn" in
     [Nn]*)
@@ -147,7 +127,16 @@ if ! branch_verify $branch_name; then
 else
   stash_push_changes
 
-  sync_branch $branch_name
+  if ! has_upstream; then
+    git switch $branch_name
 
-  stash_apply_changes $branch_name
+    echo $'\e[1;33m!\e[0m'" Your branch has no upstream configured"
+  else
+    local message=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
+    echo $'\e[1;36m!\e[0m'" $message"
+
+    sync_branch
+  fi
+
+  stash_apply_changes
 fi
