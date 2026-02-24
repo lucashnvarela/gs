@@ -141,14 +141,7 @@ if ! branch_verify $branch_name; then
     [Yy]*)
       stash_push_changes
 
-      default_branch=$(git rev-parse --abbrev-ref origin/HEAD | sed -E 's/^origin\///')
-
-      echo "Setting up new branch '$branch_name' based on '$default_branch'"
-
-      git switch --quiet $base_branch
-      git pull --quiet
-
-      git switch --create $branch_name
+      git switch --create $branch_name --no-track origin/HEAD
       ;;
   esac
 else
