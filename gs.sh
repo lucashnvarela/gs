@@ -58,6 +58,30 @@ stash_push_changes() {
   fi
 }
 
+stash_apply_changes() {
+  local branch_name=$1
+
+  local last_stash_id=$(git stash list | grep "\s$branch_name:" -m 1 | grep -oE "stash@{\d+}" | grep -oE "\d+")
+
+  if [ -z "$last_stash_id" ]; then
+    echo "No stashed changes available"
+  else
+    local n_changes=$(git stash show --include--untracked $last_stash_id | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
+
+    echo $'\e[1;33m!\e[0m'" You have $n_changes changes in your last stash"
+    git stash show --include-untracked $last_stash_id | sed '$d'
+
+    read -p $'\e[1;32m?\e[0m'" Apply last stashed changes? [Y/n] " yn
+    case "$yn" in
+      [Nn]*)
+        ;;
+      [Yy]*)
+        git stash apply --quiet $last_stash_id
+        ;;
+    esac
+  fi
+}
+
 sync_branch() {
   local branch_name=$1
 
@@ -132,23 +156,5 @@ else
 
   sync_branch $branch_name
 
-  last_stash_id=$(git stash list | grep "\s$branch_name:" -m 1 | grep -oE "stash@{\d+}" | grep -oE "\d+")
-
-  if [ -z "$last_stash_id" ]; then
-    echo "No stashed changes available"
-  else
-    n_changes=$(git stash show --include--untracked $last_stash_id | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
-
-    echo $'\e[1;33m!\e[0m'" You have $n_changes in your last stash"
-    git stash show --include-untracked $last_stash_id | sed '$d'
-
-    read -p $'\e[1;32m?\e[0m'" Apply last stashed changes? [Y/n] " yn
-    case "$yn" in
-      [Nn]*)
-        ;;
-      [Yy]*)
-        git stash apply --quiet $last_stash_id
-        ;;
-    esac
-  fi
+  stash_apply_changes $branch_name
 fi
