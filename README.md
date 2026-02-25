@@ -1,4 +1,4 @@
-# gs
+# gss
 
 A small bash script to switch git branches with less friction:
 it stashes your work, switches the branch, syncs with the remote, and can re-apply your last stash for that branch.
@@ -6,14 +6,14 @@ it stashes your work, switches the branch, syncs with the remote, and can re-app
 ### Usage
 
 ```bash
-gs <branch-name>
+gss <branch-name>
 ```
 
 Examples:
 
 ```bash
-gs main
-gs feature/add-login
+gss main
+gss feature/add-login
 ```
 
 ### Installation
@@ -21,7 +21,7 @@ gs feature/add-login
 Clone the repository and make the script executable:
 
 ```bash
-chmod +x gs.sh
+chmod +x gss.sh
 ```
 
-Add it to your `PATH` or create an alias (e.g. `alias gs='/path/to/gs/gs.sh'`).
+Add it to your `PATH` or create an alias (e.g. `alias gss="/path/to/gss/gss.sh"`).
