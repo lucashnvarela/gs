@@ -44,7 +44,7 @@ has_upstream() {
 
 stash_push_changes() {
   if ! has_changes; then
-    echo "No changes to stash"
+    echo "Nothing to stash"
   else
     git stash push --quiet --include-untracked --message "$(date '+%d-%m.%H:%M')"
 
@@ -58,17 +58,24 @@ stash_apply_changes() {
   if [ -z "$last_stash_id" ]; then
     echo "No stashed changes available"
   else
-    local n_changes=$(git stash show --include-untracked $last_stash_id | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
+    local n_changes=$(git stash show --include-untracked stash@{$last_stash_id} | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
 
     echo $'\e[1;33m!\e[0m'" You have $n_changes in your last stash"
-    git stash show --include-untracked $last_stash_id | sed '$d'
+    git stash show --include-untracked stash@{$last_stash_id} | sed '$d'
 
-    read -p $'\e[1;32m?\e[0m'" Apply last stashed changes? [Y/n] " yn
+    read -p $'\e[1;32m?\e[0m'" Apply these stashed changes? [Y/n] " yn
+
+    local n=$(echo $n_changes | grep -oE "\d+")
+    clear_lines $((n+2))
+
     case "$yn" in
       [Nn]*)
+        echo $'\e[1;36m~\e[0m'" Stash kept"
         ;;
-      [Yy]*)
-        git stash apply --quiet $last_stash_id
+      *)
+        git stash apply --quiet stash@{$last_stash_id}
+
+        echo $'\e[1;32m+\e[0m'" Stash applied"
         ;;
     esac
   fi
@@ -104,6 +111,15 @@ sync_branch() {
   fi
 }
 
+clear_lines() {
+  local n="${1:-1}"
+  local codes="\033[A\033[2K\r"
+
+  for (( i=0; i < n; i++ )); do
+    echo -en $codes
+  done
+}
+
 git fetch --quiet --all
 
 if on_branch; then
@@ -132,7 +148,7 @@ else
 
     echo $'\e[1;33m!\e[0m'" Your branch has no upstream configured"
   else
-    local message=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
+    message=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
     echo $'\e[1;36m!\e[0m'" $message"
 
     sync_branch
