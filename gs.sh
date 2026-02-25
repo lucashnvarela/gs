@@ -53,28 +53,30 @@ stash_push_changes() {
 }
 
 stash_apply_changes() {
-  local last_stash_id=$(git stash list | grep "\s$branch_name:" -m 1 | grep -oE "stash@{\d+}" | grep -oE "\d+")
+  local last_stash_id=$(git stash list | grep "\s$branch_name:" -m 1 | grep -oE "stash@{\d+}")
 
   if [ -z "$last_stash_id" ]; then
     echo "No stash found"
   else
-    local n_changes=$(git stash show --include-untracked stash@{$last_stash_id} | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
+    local changes_message=$(
+      git --no-pager stash show --include-untracked $last_stash_id |\
+        sed '$!d' | grep -oE "\d+\sfile(s)?\schanged"
+    )
 
-    echo ": Found $n_changes in stash"
-    git stash show --include-untracked stash@{$last_stash_id} | sed '$d'
+    echo ": Found $changes_message in stash"
+    git --no-pager stash show --name-status --include-untracked $last_stash_id
 
     read -p ": Apply? [Y/n] " yn
 
-    local n=$(echo $n_changes | grep -oE "\d+")
-    clear_lines $((n+2))
+    local n_changes=$(echo $changes_message | grep -oE "\d+")
+    clear_lines $((n_changes+2))
 
     case "$yn" in
       [Nn]*)
         echo "Stash kept"
         ;;
       *)
-        git stash apply --quiet stash@{$last_stash_id}
-
+        git stash apply --quiet $last_stash_id
         echo "Stash applied"
         ;;
     esac
