@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "error: not in git repository" >&1
+  echo "Not in a git repository" >&1
   exit 1
 fi
 
@@ -47,7 +47,6 @@ stash_push_changes() {
     echo "Nothing to stash"
   else
     git stash push --quiet --include-untracked --message "$(date '+%d-%m.%H:%M')"
-
     echo "Changes stashed"
   fi
 }
@@ -84,11 +83,11 @@ stash_apply_changes() {
 }
 
 sync_branch() {
-  local status_count=$(git rev-list --left-right --count HEAD...@{upstream})
-  local ahead_count behind_count
-  read ahead_count behind_count <<< $status_count
+  local status=$(git rev-list --left-right --count HEAD...@{upstream})
+  local n_ahead n_behind
+  read n_ahead n_behind <<< $status
 
-  if [ $behind_count -ne 0 ]; then
+  if [ $n_behind -ne 0 ]; then
     read -p "Pull from remote? [Y/n] " yn
     clear_lines
     case "$yn" in
@@ -101,7 +100,7 @@ sync_branch() {
     esac
   fi
 
-  if [ $ahead_count -ne 0 ]; then
+  if [ $n_ahead -ne 0 ]; then
     read -p "Push to remote? [Y/n] " yn
     clear_lines
     case "$yn" in
@@ -119,7 +118,7 @@ clear_lines() {
   local n="${1:-1}"
   local codes="\033[A\033[2K\r"
 
-  for (( i=0; i < n; i++ )); do
+  for ((i=0;i<n;i++)); do
     echo -en $codes
   done
 }
@@ -132,8 +131,9 @@ if on_branch; then
 fi
 
 if ! branch_exists; then
-  read -p "Create a new branch named $branch_name ? [Y/n] " yn
-  clear_lines
+  echo "Branch '$branch_name' not found"
+  read -p "Create a new branch? [Y/n] " yn
+  clear_lines 2
   case "$yn" in
     [Nn]*)
       echo "Aborting" >&2
@@ -141,7 +141,6 @@ if ! branch_exists; then
       ;;
     *)
       stash_push_changes
-
       git switch --create $branch_name --no-track origin/HEAD
       ;;
   esac
@@ -150,11 +149,9 @@ else
 
   if ! has_upstream; then
     git switch $branch_name
-
     echo "No upstream configured"
   else
     echo $(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
-
     sync_branch
   fi
 
