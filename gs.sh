@@ -48,7 +48,7 @@ stash_push_changes() {
   else
     git stash push --quiet --include-untracked --message "$(date '+%d-%m.%H:%M')"
 
-    echo "Changes have been stashed"
+    echo "Changes stashed"
   fi
 }
 
@@ -56,26 +56,26 @@ stash_apply_changes() {
   local last_stash_id=$(git stash list | grep "\s$branch_name:" -m 1 | grep -oE "stash@{\d+}" | grep -oE "\d+")
 
   if [ -z "$last_stash_id" ]; then
-    echo "No stashed changes available"
+    echo "No stash found"
   else
     local n_changes=$(git stash show --include-untracked stash@{$last_stash_id} | sed '$!d' | grep -oE "\d+\sfile(s)?\schanged")
 
-    echo $'\e[1;33m!\e[0m'" You have $n_changes in your last stash"
+    echo ": Found $n_changes in stash"
     git stash show --include-untracked stash@{$last_stash_id} | sed '$d'
 
-    read -p $'\e[1;32m?\e[0m'" Apply these stashed changes? [Y/n] " yn
+    read -p ": Apply? [Y/n] " yn
 
     local n=$(echo $n_changes | grep -oE "\d+")
     clear_lines $((n+2))
 
     case "$yn" in
       [Nn]*)
-        echo $'\e[1;36m~\e[0m'" Stash kept"
+        echo "Stash kept"
         ;;
       *)
         git stash apply --quiet stash@{$last_stash_id}
 
-        echo $'\e[1;32m+\e[0m'" Stash applied"
+        echo "Stash applied"
         ;;
     esac
   fi
@@ -87,24 +87,26 @@ sync_branch() {
   read ahead_count behind_count <<< $status_count
 
   if [ $behind_count -ne 0 ]; then
-    read -p $'\e[1;32m?\e[0m'" Pull commits from remote? [Y/n] " yn
+    read -p "Pull from remote? [Y/n] " yn
+    clear_lines
     case "$yn" in
       [Nn*])
         return
         ;;
-      [Yy*])
+      *)
         git pull --quiet
         ;;
     esac
   fi
 
   if [ $ahead_count -ne 0 ]; then
-    read -p $'\e[1;32m?\e[0m'" Push commits to remote? [Y/n] " yn
+    read -p "Push to remote? [Y/n] " yn
+    clear_lines
     case "$yn" in
       [Nn*])
         return
         ;;
-      [Yy*])
+      *)
         git push --quiet
         ;;
     esac
@@ -128,13 +130,14 @@ if on_branch; then
 fi
 
 if ! branch_exists; then
-  read -p $'\e[1;32m?\e[0m'" Create a new branch named '"$'\e[1;37m'"$branch_name"$'\e[0m'"'? [Y/n] " yn
+  read -p "Create a new branch named $branch_name ? [Y/n] " yn
+  clear_lines
   case "$yn" in
     [Nn]*)
       echo "Aborting" >&2
       exit 2
       ;;
-    [Yy]*)
+    *)
       stash_push_changes
 
       git switch --create $branch_name --no-track origin/HEAD
@@ -146,10 +149,9 @@ else
   if ! has_upstream; then
     git switch $branch_name
 
-    echo $'\e[1;33m!\e[0m'" Your branch has no upstream configured"
+    echo "No upstream configured"
   else
-    message=$(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
-    echo $'\e[1;36m!\e[0m'" $message"
+    echo $(git switch $branch_name | sed '2d' | sed -E 's/(\,.+$|\.$)//')
 
     sync_branch
   fi
